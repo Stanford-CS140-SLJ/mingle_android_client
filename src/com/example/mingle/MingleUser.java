@@ -116,8 +116,8 @@ class MingleUser extends MingleApplication {
         return true;
     }
 
-    public void Photos(Bitmap bm){
-        photos.add(bm);
+    public ArrayList<Bitmap> getPhotos(){
+        return photos;
     }
 
     public void addUser(JSONObject user){

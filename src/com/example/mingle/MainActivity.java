@@ -5,9 +5,9 @@ import android.support.v7.app.ActionBarActivity;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -21,7 +21,9 @@ import android.app.Activity;
 import android.app.Dialog;
 import android.app.DialogFragment;
 import android.content.ContentResolver;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentSender.SendIntentException;
 import android.graphics.Bitmap;
 import android.view.View;
 
@@ -30,11 +32,16 @@ import com.example.mingle.HttpHelper;
 import android.widget.*;
 
 import com.example.mingle.MingleApplication;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesUtil;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
+import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class MainActivity extends ActionBarActivity {
+public class MainActivity extends ActionBarActivity implements ConnectionCallbacks, OnConnectionFailedListener {
     //public static int REQUEST_CODE = 1;
     private Bitmap taken_photo_bitmap;
     private ArrayList<Bitmap> photo_list;
@@ -47,7 +54,14 @@ public class MainActivity extends ActionBarActivity {
 
     private static final String server_url = "http://ec2-54-178-214-176.ap-northeast-1.compute.amazonaws.com:8080";
     
-    private final static int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
+    private GoogleApiClient mGoogleApiClient;
+    
+    // Request code to use when launching the resolution activity
+    private static final int REQUEST_RESOLVE_ERROR = 1001;
+    // Unique tag for the error dialog fragment
+    private static final String DIALOG_ERROR = "dialog_error";
+    // Bool to track whether the app is already resolving an error
+    private boolean mResolvingError = false;
     
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -72,31 +86,51 @@ public class MainActivity extends ActionBarActivity {
                     System.out.println("Camera " + e.toString());
                     e.printStackTrace();
                 }
-            } else if (requestCode == CONNECTION_FAILURE_RESOLUTION_REQUEST) { 
-            	 switch (resultCode) {
-                 	case RESULT_OK :
-                 
-                 		// Try the request again
-                 		break;
-            	 }
-            	
+            } else if (requestCode == REQUEST_RESOLVE_ERROR) {     
+                mResolvingError = false;
+                if (resultCode == RESULT_OK) {
+                    // Make sure the app is not already connected or attempting to connect
+                    if (!mGoogleApiClient.isConnecting() &&
+                            !mGoogleApiClient.isConnected()) {
+                        mGoogleApiClient.connect();
+                    }
+                }
             }
-/*
- * If the result code is Activity.RESULT_OK, try
- * to connect again
- */
    
     }
     
 
    
     
+    @Override
+    protected void onStop() {
+        mGoogleApiClient.disconnect();
+        super.onStop();
+    }
+    
+    
+    
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        ((MingleApplication) this.getApplication()).initHelper = new HttpHelper(server_url, this);
+        
+        
+            	((MingleApplication) this.getApplication()).initHelper = new HttpHelper(server_url, this);
+          
+        
+        
+        
+        
+        mGoogleApiClient = new GoogleApiClient.Builder(this)
+        .addConnectionCallbacks(this)
+        .addOnConnectionFailedListener(this)
+        .build();
+        
+        if (!mResolvingError) {  // more about this later
+            mGoogleApiClient.connect();
+        }
         
         /*
         sex_option = "M";
@@ -112,7 +146,7 @@ public class MainActivity extends ActionBarActivity {
         
         sex_option = "M";
         RadioGroup radioSexGroup = (RadioGroup) findViewById(R.id.radioSex);
-     // get selected radio button from radioGroup
+        // get selected radio button from radioGroup
         if(radioSexGroup.getCheckedRadioButtonId() == 1) {
         	sex_option = "F";
         } 
@@ -193,92 +227,92 @@ public class MainActivity extends ActionBarActivity {
 
         return super.onOptionsItemSelected(item);
     }
+
+
+
+
     
     
-    @Override
-    protected void onResume() { 
-    	
-    }
+    /* Google Connection Client Connection callback functions */
     
-    //////////////////////////////////////////////////Location services start here ////////////////////////////////////////////////////////
-    /*
-    private static class ErrorDialogFragment extends DialogFragment {
-    	// Global field to contain the error dialog
-    	private Dialog mDialog;
-    	// Default constructor. Sets the dialog field to null
-    	public ErrorDialogFragment() {
-    			super();
-    			mDialog = null;
-    	}
-    	// Set the dialog to display
-    	public void setDialog(Dialog dialog) {
-    		mDialog = dialog;
-    	}
-    	// Return a Dialog to the DialogFragment.
-    	@Override
-    	public Dialog onCreateDialog(Bundle savedInstanceState) {
-    		return mDialog;
-    	}
+	@Override
+	public void onConnectionFailed(ConnectionResult result) {
+		// TODO Auto-generated method stub
+		if (mResolvingError) {
+            // Already attempting to resolve an error.
+            return;
+        } else if (result.hasResolution()) {
+            try {
+                mResolvingError = true;
+                result.startResolutionForResult(this, REQUEST_RESOLVE_ERROR);
+            } catch (SendIntentException e) {
+                // There was an error with the resolution intent. Try again.
+                mGoogleApiClient.connect();
+            }
+        } else {
+            // Show dialog using GooglePlayServicesUtil.getErrorDialog()
+        	//showErrorDialog(result.getErrorCode());
+            mResolvingError = true;
+        }
+	}
+
+
+
+
+
+	@Override
+	public void onConnected(Bundle connectionHint) {
+		// TODO Auto-generated method stub
+		System.out.println("unconnected!!");
+		
+	}
+
+
+
+
+
+	@Override
+	public void onConnectionSuspended(int cause) {
+		// TODO Auto-generated method stub
+		
+	}
+	
+    
+    // Creates a dialog for an error message 
+    private void showErrorDialog(int errorCode) {
+        // Create a fragment for the error dialog
+        ErrorDialogFragment dialogFragment = new ErrorDialogFragment();
+        // Pass the error that should be displayed
+        Bundle args = new Bundle();
+        args.putInt(DIALOG_ERROR, errorCode);
+        dialogFragment.setArguments(args);
+        //dialogFragment.show(getSupportFragmentManager(), "errordialog");
     }
 
-   
-    private boolean servicesConnected() {
-    // Check that Google Play services is available
-    	int resultCode =
-    			GooglePlayServicesUtil.
-                	isGooglePlayServicesAvailable(this);
-    // If Google Play services is available
-    if (ConnectionResult.SUCCESS == resultCode) {
-    // In debug mode, log the status
-    Log.d("Location Updates",
-            "Google Play services is available.");
-    // Continue
-    return true;
-    // Google Play services was not available for some reason
-    } else {
-    // Get the error code
-    int errorCode = connectionResult.getErrorCode();
-    // Get the error dialog from Google Play services
-    Dialog errorDialog = GooglePlayServicesUtil.getErrorDialog(
-            errorCode,
-            this,
-            CONNECTION_FAILURE_RESOLUTION_REQUEST);
+    // Called from ErrorDialogFragment when the dialog is dismissed. 
+    public void onDialogDismissed() {
+        mResolvingError = false;
+    }
 
-    // If Google Play services can provide an error dialog
-    if (errorDialog != null) {
-        // Create a new DialogFragment for the error dialog
-        ErrorDialogFragment errorFragment =
-                new ErrorDialogFragment();
-        // Set the dialog in the DialogFragment
-        errorFragment.setDialog(errorDialog);
-        // Show the error dialog in the DialogFragment
-        errorFragment.show(getSupportFragmentManager(),
-                "Location Updates");
-    }
-    }
+    // A fragment to display an error dialog 
+    public static class ErrorDialogFragment extends DialogFragment {
+        public ErrorDialogFragment() { }
+
+        @Override
+        public Dialog onCreateDialog(Bundle savedInstanceState) {
+            // Get the error code and retrieve the appropriate dialog
+            int errorCode = this.getArguments().getInt(DIALOG_ERROR);
+            return GooglePlayServicesUtil.getErrorDialog(errorCode,
+                    this.getActivity(), REQUEST_RESOLVE_ERROR);
+        }
+
+        @Override
+        public void onDismiss(DialogInterface dialog) {
+            ((MainActivity)getActivity()).onDialogDismissed();
+        }
     }
     
-    }
-
-	*/
+    
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

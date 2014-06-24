@@ -3,18 +3,41 @@ package com.example.mingle;
 
         
         import android.content.Context;
-        import android.content.Intent;
-        import android.graphics.Bitmap;
-        import android.os.AsyncTask;
-        import java.net.*;
-     
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.os.AsyncTask;
+
+import java.net.*;
+
         import io.socket.*;
-        import java.util.ArrayList;
+
+import java.util.ArrayList;
 
         import com.example.mingle.MingleUser;
-        //import com.hmkcode.android.vo.Person;
+        
+
+
+
+
+
+
+
+
+
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.ParseException;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.util.EntityUtils;
+//import com.hmkcode.android.vo.Person;
         import org.json.*;
-        import java.lang.String;
+
+import java.io.IOException;
+import java.lang.String;
 
 /**
  * Created by Tempnote on 2014-06-02.
@@ -87,12 +110,6 @@ public class HttpHelper extends AsyncTask<String, MingleUser, Integer>  {
             @Override
             public void onMessage(JSONObject json, IOAcknowledge ack) {
                 try {
-
-                    //Intent intent = new Intent("data_op");
-                    //intent.putExtra("extra", extra);
-                    //startActivity(intent);
-                    //Activity curActivity = ((MingleApplication)this.getApplicationContext()).getCurrentActivity();
-                    //curActivity.sendBroadcast(intent);
                     System.out.println("Server said:" + json.toString(2));
 
                 } catch (JSONException e) {
@@ -102,13 +119,83 @@ public class HttpHelper extends AsyncTask<String, MingleUser, Integer>  {
         };
         socket.connect( sth);
     }
+    
+    
+    
 
     //what's this? -SK
-    public void send(String message) {
-        assert socket !=null;
-        socket.send(message);
+    public void send(ArrayList<Bitmap> photos, String comment, String sex, int number, float longitude, float latitude)  {
+       
+    	
+    	String baseURL = "http://ec2-54-178-214-176.ap-northeast-1.compute.amazonaws.com:8080/";
+    	baseURL += "user_create?";
+    	baseURL += "comm=" +comment + "&";
+    	baseURL += "sex=" + sex + "&";
+    	baseURL += "num=" + (new Integer(number)).toString() + "&";
+    	baseURL += "loc_long=" + (new Float(longitude)).toString() + "&";
+    	baseURL += "loc_lat=" + (new Float(latitude)).toString();
+    	System.out.println(baseURL);
+    	//initInfoObject.put("photo_count", photos.size());
+        
+    	/*
+    	for (int i = 0; i < 3; i++) {
+            Integer x = i;
+            if( i < photos.size())
+            	baseURL += "pic" + Integer.toString(x + 1) photos.get(i);
+                initInfoObject.put("pic" + Integer.toString(x + 1), photos.get(i));
+            else
+                initInfoObject.put("pic" + Integer.toString(x + 1),"");
+        }*/
+    	final String cpy = baseURL;
+       
+    	   
+    	   new Thread(new Runnable() {
+    	        public void run() {
+    	        	HttpClient client = new DefaultHttpClient();
+    	        	HttpGet poster = new HttpGet(cpy);
+    	        	 HttpResponse response = null;
+					try {
+						response = client.execute(poster);
+					} catch (ClientProtocolException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+    	        	 HttpResponseBody(response);
+    	        }
+    	    }).start();
+    	  
+    	   System.out.println("Got here!!");
+    	  
+       
     }
-
+    
+    public void HttpResponseBody(HttpResponse response) { 
+    	System.out.println(Integer.valueOf(response.getStatusLine().getStatusCode()).toString());
+    	if(response.getStatusLine().getStatusCode() == 200)
+        {
+			HttpEntity entity = response.getEntity();
+			assert (entity != null);
+			System.out.println("Entity:"+entity);
+			if (entity != null) {
+				String responseBody = "";
+				try {
+					responseBody = EntityUtils.toString(entity);
+				} catch (ParseException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				System.out.println("finalResult"+responseBody.toString());
+            }
+        }
+    	
+    }
+    
     /* Method Name: changeContext
      * Should be called whenever the context changes.
      */
@@ -121,7 +208,10 @@ public class HttpHelper extends AsyncTask<String, MingleUser, Integer>  {
     * is the unique id of the user as well as some other useful information
     */
     public void sendInitialInfo(ArrayList<Bitmap> photos, String comment, String sex, int number, float longitude, float latitude) {
-
+    	
+    	boolean fat = true;
+    	this.send(photos, comment, sex, number, longitude, latitude);
+    	if (fat) return; 
         if (photos == null) photos = new ArrayList<Bitmap>();
         JSONObject initInfoObject = new JSONObject();
         //JSONObject photo_arr = new JSONObject();
