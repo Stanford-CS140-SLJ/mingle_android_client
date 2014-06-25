@@ -24,6 +24,9 @@ import java.util.ArrayList;
 
 
 
+
+
+
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.ParseException;
@@ -57,7 +60,6 @@ public class HttpHelper extends AsyncTask<String, MingleUser, Integer>  {
             f.printStackTrace();
         }*/
 
-        System.out.println("kill me now");
         if (socket == null) {
             System.out.println("Socket is not availiable");
             return;
@@ -88,23 +90,16 @@ public class HttpHelper extends AsyncTask<String, MingleUser, Integer>  {
 
             @Override
             public void onConnect() {
-                System.out.println("Connection established");
+                System.out.println("Connection established");        
             }
 
             @Override
             public void on(String event, IOAcknowledge ack, Object... args) {
                 System.out.println("Server triggered event '" + event + "'");
                 
-                if(event.equals("user_create_return")){
-                    ((MainActivity)currContext).createUser((JSONObject) args[0]);
-
-                    Intent i = new Intent(currContext, HuntActivity.class);
-                    currContext.startActivity(i);
-                } 
-
-                if(event.equals("get_list_return")){
+                /*if(event.equals("get_list_return")){
                     ((HuntActivity)currContext).showList((JSONArray)args[0]);
-                }
+                }*/
             }
 
             @Override
@@ -117,14 +112,26 @@ public class HttpHelper extends AsyncTask<String, MingleUser, Integer>  {
                 }
             }
         };
-        socket.connect( sth);
+        socket.connect(sth);
     }
     
     
-    
+    public void mola(String id){
+    	JSONObject temp = new JSONObject();
+    	try {
+			temp.put("uid", id);
+		} catch (JSONException e) {
+			e.printStackTrace();
+		}
+    	System.out.println(temp.toString());
+    	socket.emit("sunkyu", temp);
+    }
 
-    //what's this? -SK
-    public void send(ArrayList<Bitmap> photos, String comment, String sex, int number, float longitude, float latitude)  {
+    /*
+    * Sends login info along to the server, and hopefully what will be returned
+    * is the unique id of the user as well as some other useful information
+    */
+    public void userCreateRequest(ArrayList<Bitmap> photos, String comment, String sex, int number, float longitude, float latitude)  {
        
     	
     	String baseURL = "http://ec2-54-178-214-176.ap-northeast-1.compute.amazonaws.com:8080/";
@@ -134,9 +141,7 @@ public class HttpHelper extends AsyncTask<String, MingleUser, Integer>  {
     	baseURL += "num=" + (new Integer(number)).toString() + "&";
     	baseURL += "loc_long=" + (new Float(longitude)).toString() + "&";
     	baseURL += "loc_lat=" + (new Float(latitude)).toString();
-    	System.out.println(baseURL);
-    	//initInfoObject.put("photo_count", photos.size());
-        
+    	
     	/*
     	for (int i = 0; i < 3; i++) {
             Integer x = i;
@@ -148,32 +153,35 @@ public class HttpHelper extends AsyncTask<String, MingleUser, Integer>  {
         }*/
     	final String cpy = baseURL;
        
-    	   
-    	   new Thread(new Runnable() {
-    	        public void run() {
-    	        	HttpClient client = new DefaultHttpClient();
-    	        	HttpGet poster = new HttpGet(cpy);
-    	        	 HttpResponse response = null;
-					try {
-						response = client.execute(poster);
-					} catch (ClientProtocolException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-    	        	 HttpResponseBody(response);
-    	        }
-    	    }).start();
-    	  
-    	   System.out.println("Got here!!");
-    	  
-       
+    	//Start Thread that receives HTTP Response
+    	new Thread(new Runnable() {
+    		public void run() {
+    			HttpClient client = new DefaultHttpClient();
+    	        HttpGet poster = new HttpGet(cpy);
+    	        HttpResponse response = null;
+				try {
+					response = client.execute(poster);
+				} catch (ClientProtocolException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				
+				try{
+		    		JSONObject user_info = new JSONObject(HttpResponseBody(response));
+		        	((MainActivity)currContext).joinMingle(user_info);
+		    	} catch (JSONException je){
+		    		je.printStackTrace();
+		    	}
+    		}
+    	}).start();
     }
     
-    public void HttpResponseBody(HttpResponse response) { 
-    	System.out.println(Integer.valueOf(response.getStatusLine().getStatusCode()).toString());
+    //Fetch data from HttpResponse
+    public String HttpResponseBody(HttpResponse response) { 
+    	//System.out.println(Integer.valueOf(response.getStatusLine().getStatusCode()).toString());
     	if(response.getStatusLine().getStatusCode() == 200)
         {
 			HttpEntity entity = response.getEntity();
@@ -190,10 +198,10 @@ public class HttpHelper extends AsyncTask<String, MingleUser, Integer>  {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-				System.out.println("finalResult"+responseBody.toString());
+				return responseBody.toString();
             }
         }
-    	
+    	return null;
     }
     
     /* Method Name: changeContext
@@ -203,42 +211,8 @@ public class HttpHelper extends AsyncTask<String, MingleUser, Integer>  {
         this.currContext = context;
     }
 
-    /*
-    * Sends login info along to the server, and hopefully what will be returned
-    * is the unique id of the user as well as some other useful information
-    */
-    public void sendInitialInfo(ArrayList<Bitmap> photos, String comment, String sex, int number, float longitude, float latitude) {
-    	
-    	boolean fat = true;
-    	this.send(photos, comment, sex, number, longitude, latitude);
-    	if (fat) return; 
-        if (photos == null) photos = new ArrayList<Bitmap>();
-        JSONObject initInfoObject = new JSONObject();
-        //JSONObject photo_arr = new JSONObject();
-        try {
-            initInfoObject.put("comm",comment);
-            initInfoObject.put("sex",sex);
-            initInfoObject.put("num",number);
-            initInfoObject.put("loc_long",longitude);
-            initInfoObject.put("loc_lat",latitude);
-
-            //initInfoObject.put("photo_count", photos.size());
-            for (int i = 0; i < 3; i++) {
-                Integer x = i;
-                if( i < photos.size())
-                    initInfoObject.put("pic" + Integer.toString(x + 1), photos.get(i));
-                else
-                    initInfoObject.put("pic" + Integer.toString(x + 1),"");
-            }
-            //initInfoObject.put("photos", photo_arr);
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        socket.emit("user_create",initInfoObject);
-    }
-
-    public void requestUserList(String uid, String sex, float loc_lat, float loc_long, int dist_lim, int num_of_users) {
-        JSONObject userListRequestObject = new JSONObject();
+    public void requestUserList(String uid, String sex, float latitude, float longitude, int dist_lim, int num_of_users) {
+        /*JSONObject userListRequestObject = new JSONObject();
         try {
             userListRequestObject.put("uid", uid);
             userListRequestObject.put("sex", sex);
@@ -249,7 +223,43 @@ public class HttpHelper extends AsyncTask<String, MingleUser, Integer>  {
         } catch (JSONException e) {
             e.printStackTrace();
         }
-        socket.emit("get_list", userListRequestObject);
+        socket.emit("get_list", userListRequestObject);*/
+    	String baseURL = "http://ec2-54-178-214-176.ap-northeast-1.compute.amazonaws.com:8080/";
+    	baseURL += "get_list?";
+    	baseURL += "sex=" + sex + "&";
+    	baseURL += "dist_lim=" + (new Integer(dist_lim)).toString() + "&";
+    	baseURL += "loc_long=" + (new Float(longitude)).toString() + "&";
+    	baseURL += "loc_lat=" + (new Float(latitude)).toString() + "&";
+    	baseURL += "list_num=" + (new Integer(num_of_users)).toString();
+    	
+    	final String cps = baseURL;
+       
+    	//Start Thread that receives HTTP Response
+    	new Thread(new Runnable() {
+    		public void run() {
+    			System.out.println(cps);
+    			HttpClient client = new DefaultHttpClient();
+    	        HttpGet poster = new HttpGet(cps);
+    	        HttpResponse response = null;
+				try {
+					response = client.execute(poster);
+					System.out.println(response.toString());
+				} catch (ClientProtocolException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				
+				try{
+		    		final JSONArray list_of_users = new JSONArray(HttpResponseBody(response));
+	                ((HuntActivity)currContext).updateList(list_of_users);
+		    	} catch (JSONException je){
+		    		je.printStackTrace();
+		    	}
+    		}
+    	}).start();
     }
 
     //@Override

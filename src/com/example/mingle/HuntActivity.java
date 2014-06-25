@@ -9,11 +9,14 @@ import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.support.v7.app.ActionBarActivity;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
 import android.widget.Toast;
 
 import com.fortysevendeg.swipelistview.BaseSwipeListViewListener;
@@ -30,18 +33,25 @@ import java.util.List;
 
 
 public class HuntActivity extends ActionBarActivity  {
-	private SwipeListView swipelistview;
+	private SwipeListView allchatlistview;
+	private ListView currentlychattinglistview;
 	private ItemAdapter adapter;
 	private List<ItemRow> itemData;
-
+	
+	
+	private ArrayList<ItemRow> currentItemData;
+	 
+	  private ArrayAdapter<ItemRow> currentlistAdapter ;
+	
 	@Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_hunt);
         
-        MingleUser currUser = ((MingleApplication) this.getApplication()).currUser;
-        ((MingleApplication) this.getApplication()).initHelper.requestUserList(currUser.getUid(), currUser.getSex(), 
-        																				currUser.getLat(), currUser.getLong(), currUser.getDist(), 10);
+        new LoadDataTask(this.getApplication(), 10).execute();
+        //MingleUser currUser = ((MingleApplication) this.getApplication()).currUser;
+        //((MingleApplication) this.getApplication()).initHelper.requestUserList(currUser.getUid(), currUser.getSex(), 
+        //																				currUser.getLat(), currUser.getLong(), currUser.getDist(), 10);
 
         ((MingleApplication) this.getApplication()).initHelper.changeContext(this);
 
@@ -52,13 +62,28 @@ public class HuntActivity extends ActionBarActivity  {
         Toast toast = Toast.makeText(context, text, duration);
         toast.show();
 
-        swipelistview=(SwipeListView)findViewById(R.id.example_swipe_lv_list);
+        allchatlistview=(SwipeListView)findViewById(R.id.All);
+        currentlychattinglistview=(ListView) findViewById(R.id.mingling);
         itemData=new ArrayList<ItemRow>();
         adapter=new ItemAdapter(this,R.layout.custom_row,itemData);
         
+        currentItemData = new ArrayList<ItemRow>();
+        
+        currentlistAdapter = new ItemAdapter(this, R.layout.custom_row, currentItemData);
+        
+        
+        // Add more planets. If you passed a String[] instead of a List<String>   
+        // into the ArrayAdapter constructor, you must not add more items.   
+        // Otherwise an exception will occur.  
+         
+          
+        // Set the ArrayAdapter as the ListView's adapter.  
+        currentlychattinglistview.setAdapter( currentlistAdapter );        
+        
+        
         final Activity curActivity = this;
         
-        swipelistview.setSwipeListViewListener(new BaseSwipeListViewListener() {
+        allchatlistview.setSwipeListViewListener(new BaseSwipeListViewListener() {
             @Override
             public void onOpened(int position, boolean toRight) {
             }
@@ -80,7 +105,8 @@ public class HuntActivity extends ActionBarActivity  {
                 Log.d("swipe", String.format("onStartOpen %d - action %d", position, action));
                 Intent i = new Intent(curActivity, ChatroomActivity.class);
                 curActivity.startActivity(i);
-                swipelistview.openAnimate(position); //when you touch front view it will open
+                allchatlistview.openAnimate(position); //when you touch front view it will open
+                currentlistAdapter.add(itemData.get(position));
             }
     
             @Override
@@ -98,7 +124,7 @@ public class HuntActivity extends ActionBarActivity  {
             public void onClickBackView(int position) {
                 Log.d("swipe", String.format("onClickBackView %d", position));
     
-                swipelistview.closeAnimate(position);//when you touch back view it will close
+                allchatlistview.closeAnimate(position);//when you touch back view it will close
             }
     
             @Override
@@ -110,24 +136,23 @@ public class HuntActivity extends ActionBarActivity  {
         
         //These are the swipe listview settings. you can change these
         //setting as your requirement
-        swipelistview.setSwipeMode(SwipeListView.SWIPE_MODE_LEFT); // there are five swiping modes
-        swipelistview.setSwipeActionLeft(SwipeListView.SWIPE_ACTION_REVEAL); //there are four swipe actions
-        swipelistview.setSwipeActionRight(SwipeListView.SWIPE_ACTION_REVEAL);
-        swipelistview.setOffsetLeft(convertDpToPixel(0f)); // left side offset
-        swipelistview.setOffsetRight(convertDpToPixel(0f)); // right side offset
-        swipelistview.setAnimationTime(50); // animation time
-        swipelistview.setSwipeOpenOnLongPress(true); // enable or disable SwipeOpenOnLongPress
+        allchatlistview.setSwipeMode(SwipeListView.SWIPE_MODE_LEFT); // there are five swiping modes
+        allchatlistview.setSwipeActionLeft(SwipeListView.SWIPE_ACTION_REVEAL); //there are four swipe actions
+        allchatlistview.setSwipeActionRight(SwipeListView.SWIPE_ACTION_REVEAL);
+        allchatlistview.setOffsetLeft(convertDpToPixel(0f)); // left side offset
+        allchatlistview.setOffsetRight(convertDpToPixel(0f)); // right side offset
+        allchatlistview.setAnimationTime(50); // animation time
+        allchatlistview.setSwipeOpenOnLongPress(true); // enable or disable SwipeOpenOnLongPress
         
-        swipelistview.setAdapter(adapter);
-        final Application curApp= this.getApplication();
-        swipelistview.setOnLoadMoreListener(new OnLoadMoreListener() {
+        allchatlistview.setAdapter(adapter);
+       final ApplicationWrapper wrapper = new ApplicationWrapper(this.getApplication());
+        allchatlistview.setOnLoadMoreListener(new OnLoadMoreListener() {
             public void onLoadMore() {
                 // Do the work to load more items at the end of list
                 // here
             	System.out.println("loadmore start");
-            	 MingleUser currUser = ((MingleApplication) curApp).currUser;
-            	((MingleApplication) curApp).initHelper.requestUserList(currUser.getUid(), currUser.getSex(), 
-						currUser.getLat(), currUser.getLong(), currUser.getDist(), 5);
+            	new LoadDataTask(wrapper.curApp, 5).execute();
+            	
             	System.out.println("On load more called!!");
             	
             	 //Context context = getApplicationContext();
@@ -141,6 +166,13 @@ public class HuntActivity extends ActionBarActivity  {
          
     }
     
+	private class ApplicationWrapper {
+		Application curApp;
+		public ApplicationWrapper(Application app) {
+			curApp = app;
+		}
+	}
+	
     public int convertDpToPixel(float dp) {
         DisplayMetrics metrics = getResources().getDisplayMetrics();
         float px = dp * (metrics.densityDpi / 160f);
@@ -151,8 +183,9 @@ public class HuntActivity extends ActionBarActivity  {
      * Retrieve data from HttpHelper. Content of data is the list of nearby users of opposite sex.
      * This method also appends the new data to the list and shows them on the screen.
      */
-    public void showList(JSONArray listData){
+    public void updateList(JSONArray listData){
     	System.out.println("showlist!");
+    	System.out.println(listData.toString());
         for(int i = 0 ; i < listData.length(); i++) {
             try {
                 JSONObject shownUser = listData.getJSONObject(i);
@@ -167,7 +200,53 @@ public class HuntActivity extends ActionBarActivity  {
             } catch (JSONException e){
                 e.printStackTrace();
             }
-        }
-        adapter.notifyDataSetChanged();
+        }        
     }
+    
+    private class LoadDataTask extends AsyncTask<Void, Void, Void> {
+    	
+    	private Application curApp;
+    	
+    	private int load_num;
+    	
+    	public LoadDataTask(Application app, int load_num) {
+    		curApp = app;
+    		this.load_num = load_num;
+    	}
+    	
+		@Override
+		protected Void doInBackground(Void... params) {
+
+			if (isCancelled()) {
+				return null;
+			}
+
+	        
+			MingleUser currUser = ((MingleApplication) curApp).currUser;
+        	((MingleApplication) curApp).initHelper.requestUserList(currUser.getUid(), currUser.getSex(), 
+					currUser.getLat(), currUser.getLong(), currUser.getDist(), load_num);
+
+			return null;
+		}
+
+		@Override
+		protected void onPostExecute(Void result) {
+
+			// We need notify the adapter that the data have been changed
+			adapter.notifyDataSetChanged();
+
+			// Call onLoadMoreComplete when the LoadMore task, has finished
+			allchatlistview.onLoadMoreComplete();
+
+			super.onPostExecute(result);
+		}
+
+		@Override
+		protected void onCancelled() {
+			// Notify the loading more operation has finished
+			allchatlistview.onLoadMoreComplete();
+		}
+	}
 }
+
+

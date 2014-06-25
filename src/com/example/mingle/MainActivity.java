@@ -150,7 +150,7 @@ public class MainActivity extends ActionBarActivity implements ConnectionCallbac
         if(radioSexGroup.getCheckedRadioButtonId() == 1) {
         	sex_option = "F";
         } 
-        this.takePicture();
+        //this.takePicture();
     }
 
     public void userCreateButtonPressed(View view) {
@@ -160,23 +160,14 @@ public class MainActivity extends ActionBarActivity implements ConnectionCallbac
         latitude = (float)4.11;
         longitude = (float)4.11;
         //if (new_user.isValid()) {
-        ((MingleApplication) this.getApplication()).initHelper.sendInitialInfo(photo_list, comment_option, sex_option, num_option, longitude, latitude);
-        /*initInfoObject.put("comm",comment);
-            initInfoObject.put("sex",sex);
-            initInfoObject.put("num",number);
-            initInfoObject.put("loc_long",longitude);
-            initInfoObject.put("loc_lat",latitude);*/
-        //String base = "server_url"
-
-          // Intent myIntent = new Intent(MainActivity.this, HuntActivity.class);
-           //myIntent.putExtra("success", "value"); //Optional parameters
-           //MainActivity.this.startActivity(myIntent);
+        ((MingleApplication) this.getApplication()).initHelper.userCreateRequest(photo_list, comment_option, sex_option, num_option, longitude, latitude);
        //} else {
        //    System.out.println("The user is not valid.");
        //}
     }
 
-    public void createUser(JSONObject userData) {
+    //Create Mingle User and join Mingle Market
+    public void joinMingle(JSONObject userData) {
         ((MingleApplication) this.getApplication()).currUser = new MingleUser();
         try {
             System.out.println(userData.toString());
@@ -186,6 +177,15 @@ public class MainActivity extends ActionBarActivity implements ConnectionCallbac
         } catch(JSONException e){
             e.printStackTrace();
         }
+        
+        try{
+        	((MingleApplication)this.getApplication()).initHelper.mola(userData.getString("UID"));
+        } catch (JSONException e){
+        	e.printStackTrace();
+        }
+        	
+        Intent i = new Intent(this, HuntActivity.class);
+        startActivity(i);
     }
 
     private byte[] compressPicture(Bitmap pic) {
