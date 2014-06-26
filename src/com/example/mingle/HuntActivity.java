@@ -8,6 +8,10 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.support.v13.app.FragmentTabHost;
+import android.support.v4.app.FragmentActivity;
+import android.support.v4.view.ViewPager;
+import android.support.v4.view.ViewPager.OnPageChangeListener;
 import android.support.v7.app.ActionBarActivity;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -15,8 +19,13 @@ import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.ArrayAdapter;
+import android.widget.FrameLayout;
 import android.widget.ListView;
+import android.widget.TabHost;
+import android.widget.TabHost.OnTabChangeListener;
+import android.widget.TabWidget;
 import android.widget.Toast;
 
 import com.fortysevendeg.swipelistview.BaseSwipeListViewListener;
@@ -31,8 +40,14 @@ import java.lang.String;
 import java.util.ArrayList;
 import java.util.List;
 
+import android.support.v4.app.FragmentActivity;
 
-public class HuntActivity extends ActionBarActivity  {
+
+public class HuntActivity extends FragmentActivity  {
+	
+	private TabHost mTabHost;
+	
+	
 	private SwipeListView allchatlistview;
 	private ListView currentlychattinglistview;
 	private ItemAdapter adapter;
@@ -43,11 +58,46 @@ public class HuntActivity extends ActionBarActivity  {
 	 
 	  private ArrayAdapter<ItemRow> currentlistAdapter ;
 	
+	  
+	  private void initializeTabHost() { 
+		  mTabHost = (TabHost)findViewById(android.R.id.tabhost);
+	        mTabHost.setup();
+
+	        mTabHost.addTab(mTabHost.newTabSpec("All"));
+	        mTabHost.addTab(mTabHost.newTabSpec("mingling"));
+	        //final TabWidget tabWidget = mTabHost.getTabWidget();
+			//final FrameLayout tabContent = mTabHost.getTabContentView();
+		  /*
+			// Get the original tab textviews and remove them from the viewgroup.
+			ListView[] originalTabViews = new ListView[tabWidget.getTabCount()];
+			for (int index = 0; index < tabWidget.getTabCount(); index++) {
+				originalTabViews[index] = (ListView) tabWidget.getChildTabViewAt(index);
+			}
+			tabWidget.removeAllViews();
+			
+			// Ensure that all tab content childs are not visible at startup.
+			for (int index = 0; index < tabContent.getChildCount(); index++) {
+				tabContent.getChildAt(index).setVisibility(View.GONE);
+			}*/
+			
+			// Create the tabspec based on the textview childs in the xml file.
+			// Or create simple tabspec instances in any other way...
+			mTabHost.newTabSpec("All");
+			mTabHost.newTabSpec("mingling");
+			mTabHost.setCurrentTab(0);
+			
+	  }
+	  
+	  
 	@Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_hunt);
         
+        
+        
+       initializeTabHost();
+       
         new LoadDataTask(this.getApplication(), 10).execute();
         //MingleUser currUser = ((MingleApplication) this.getApplication()).currUser;
         //((MingleApplication) this.getApplication()).initHelper.requestUserList(currUser.getUid(), currUser.getSex(), 
@@ -67,16 +117,12 @@ public class HuntActivity extends ActionBarActivity  {
         itemData=new ArrayList<ItemRow>();
         adapter=new ItemAdapter(this,R.layout.custom_row,itemData);
         
-        currentItemData = new ArrayList<ItemRow>();
         
+        
+        // Stores 
+        currentItemData = new ArrayList<ItemRow>();
         currentlistAdapter = new ItemAdapter(this, R.layout.custom_row, currentItemData);
         
-        
-        // Add more planets. If you passed a String[] instead of a List<String>   
-        // into the ArrayAdapter constructor, you must not add more items.   
-        // Otherwise an exception will occur.  
-         
-          
         // Set the ArrayAdapter as the ListView's adapter.  
         currentlychattinglistview.setAdapter( currentlistAdapter );        
         
@@ -247,6 +293,8 @@ public class HuntActivity extends ActionBarActivity  {
 			allchatlistview.onLoadMoreComplete();
 		}
 	}
+
+	
 }
 
 
